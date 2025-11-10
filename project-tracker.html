@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Project Tracker</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Heroicons (optional) -->
+  <script src="https://unpkg.com/heroicons@2.1.1/dist/heroicons.min.js"></script>
+  <style>
+    .progress-bar { @apply h-3 rounded-full bg-gray-200 overflow-hidden; }
+    .progress-fill { @apply h-full transition-all duration-500; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-full flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-white shadow-sm border-b">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-indigo-600">Project Tracker</h1>
+      <button id="new-project-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        New Project
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-6xl mx-auto px-4 py-6 w-full">
+    <div id="projects-grid" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3"></div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="text-center py-12 hidden">
+      <svg class="mx-auto w-20 h-20 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      <p class="text-gray-500">No projects yet. Click <strong>New Project</strong> to start.</p>
+    </div>
+  </main>
+
+  <!-- Modal (hidden by default) -->
+  <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 p-6 max-h-screen overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h2 id="modal-title" class="text-xl font-semibold">New Project</h2>
+        <button id="close-modal" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <form id="project-form" class="space-y-4">
+        <input type="hidden" id="project-id"/>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Project Name *</label>
+          <input type="text" id="name" required class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          <select id="status" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="planning">Planning</option>
+            <option value="in-progress">In Progress</option>
+            <option value="testing">Testing</option>
+            <option value="completed">Completed</option>
+            <option value="on-hold">On Hold</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+            <input type="date" id="start-date" class="w-full border rounded-lg px-3 py-2"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Estimated Finish *</label>
+            <input type="date" id="end-date" required class="w-full border rounded-lg px-3 py-2"/>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Estimated Cost (₹)</label>
+          <input type="number" id="cost" min="0" step="0.01" placeholder="0.00" class="w-full border rounded-lg px-3 py-2"/>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Team Members (comma separated)</label>
+          <input type="text" id="members" placeholder="John, Priya, Raj" class="w-full border rounded-lg px-3 py-2"/>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Notes / Description</label>
+          <textarea id="notes" rows="3" class="w-full border rounded-lg px-3 py-2"></textarea>
+        </div>
+
+        <div class="flex justify-end gap-3 mt-6">
+          <button type="button" id="cancel-modal" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Save Project</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+    // ==== LocalStorage Helper ====
+    const STORAGE_KEY = 'project-tracker-data';
+    const loadProjects = () => JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const saveProjects = (arr) => localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+
+    // ==== DOM Elements ====
+    const grid = document.getElementById('projects-grid');
+    const empty = document.getElementById('empty-state');
+    const modalBackdrop = document.getElementById('modal-backdrop');
+    const modalTitle = document.getElementById('modal-title');
+    const form = document.getElementById('project-form');
+    const newBtn = document.getElementById('new-project-btn');
+
+    // ==== Utility ====
+    const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-IN') : '-';
+    const daysLeft = (end) => {
+      if (!end) return null;
+      const diff = new Date(end) - new Date();
+      return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+    };
+    const statusColor = (s) => {
+      const map = {planning:'#6366f1', 'in-progress':'#f59e0b', testing:'#10b981', completed:'#22c55e', 'on-hold':'#ef4444'};
+      return map[s] || '#6b7280';
+    };
+
+    // ==== Render Card ====
+    const renderCard = (proj) => {
+      const days = daysLeft(proj.endDate);
+      const progress = proj.startDate && proj.endDate
+        ? Math.min(100, Math.round(( (new Date() - new Date(proj.startDate)) / (new Date(proj.endDate) - new Date(proj.startDate)) ) * 100))
+        : 0;
+
+      const card = document.createElement('div');
+      card.className = 'bg-white rounded-xl shadow-sm border p-5 hover:shadow-md transition-shadow cursor-pointer';
+      card.onclick = () => openEditModal(proj.id);
+
+      card.innerHTML = `
+        <div class="flex justify-between items-start mb-3">
+          <h3 class="font-semibold text-lg text-gray-900 truncate">${proj.name}</h3>
+          <span class="px-2 py-1 text-xs font-medium rounded-full text-white" style="background:${statusColor(proj.status)}">
+            ${proj.status.replace('-',' ').toUpperCase()}
+          </span>
+        </div>
+
+        <div class="space-y-2 text-sm text-gray-600">
+          <div class="flex justify-between">
+            <span>Start:</span> <span class="font-medium">${formatDate(proj.startDate)}</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Est. Finish:</span> <span class="font-medium">${formatDate(proj.endDate)}</span>
+          </div>
+          ${days !== null ? `<div class="text-right text-xs ${days===0?'text-green-600':(days<=7?'text-orange-600':'text-gray-500')}">
+            ${days === 0 ? 'Due today' : `${days} day${days>1?'s':''} left`}
+          </div>` : ''}
+
+          <div class="progress-bar mt-3">
+            <div class="progress-fill" style="width:${Math.max(0,Math.min(100,progress))}%;background:${statusColor(proj.status)}"></div>
+          </div>
+
+          ${proj.cost ? `<p class="mt-2"><strong>₹${Number(proj.cost).toLocaleString('en-IN')}</strong> estimated</p>` : ''}
+          ${proj.members ? `<p class="text-xs text-gray-500 mt-1">👥 ${proj.members}</p>` : ''}
+        </div>
+      `;
+
+      return card;
+    };
+
+    // ==== Render All ====
+    const renderAll = () => {
+      const projects = loadProjects();
+      grid.innerHTML = '';
+      if (projects.length === 0) {
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+      projects.forEach(p => grid.appendChild(renderCard(p)));
+    };
+
+    // ==== Modal Helpers ====
+    const resetForm = () => {
+      form.reset();
+      document.getElementById('project-id').value = '';
+      modalTitle.textContent = 'New Project';
+    };
+
+    const openModal = () => {
+      resetForm();
+      modalBackdrop.classList.remove('hidden');
+      document.getElementById('name').focus();
+    };
+
+    const closeModal = () => {
+      modalBackdrop.classList.add('hidden');
+    };
+
+    const openEditModal = (id) => {
+      const projects = loadProjects();
+      const proj = projects.find(p => p.id === id);
+      if (!proj) return;
+
+      document.getElementById('project-id').value = proj.id;
+      document.getElementById('name').value = proj.name;
+      document.getElementById('status').value = proj.status;
+      document.getElementById('start-date').value = proj.startDate || '';
+      document.getElementById('end-date').value = proj.endDate || '';
+      document.getElementById('cost').value = proj.cost || '';
+      document.getElementById('members').value = proj.members || '';
+      document.getElementById('notes').value = proj.notes || '';
+      modalTitle.textContent = 'Edit Project';
+      modalBackdrop.classList.remove('hidden');
+    };
+
+    // ==== Save / Update ====
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = document.getElementById('project-id').value || Date.now().toString();
+      const newProj = {
+        id,
+        name: document.getElementById('name').value.trim(),
+        status: document.getElementById('status').value,
+        startDate: document.getElementById('start-date').value || null,
+        endDate: document.getElementById('end-date').value,
+        cost: document.getElementById('cost').value || null,
+        members: document.getElementById('members').value.trim() || null,
+        notes: document.getElementById('notes').value.trim() || null,
+        updatedAt: new Date().toISOString()
+      };
+
+      let projects = loadProjects();
+      const idx = projects.findIndex(p => p.id === id);
+      if (idx > -1) projects[idx] = newProj;
+      else projects.push(newProj);
+
+      saveProjects(projects);
+      closeModal();
+      renderAll();
+    });
+
+    // ==== Event Listeners ====
+    newBtn.onclick = openModal;
+    document.getElementById('close-modal').onclick = closeModal;
+    document.getElementById('cancel-modal').onclick = closeModal;
+    modalBackdrop.onclick = (e) => { if (e.target === modalBackdrop) closeModal(); };
+
+    // ==== Init ====
+    renderAll();
+  </script>
+</body>
+</html>
