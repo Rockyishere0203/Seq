@@ -26,7 +26,7 @@
   <!-- Main Layout: Two Columns -->
   <main class="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-    <!-- === LEFT: PROJECT TRACKER === -->
+    <!-- LEFT: PROJECT TRACKER -->
     <section>
       <h2 class="text-xl font-semibold mb-4 text-gray-800">Projects</h2>
       <div id="projects-grid" class="grid gap-4 md:grid-cols-1"></div>
@@ -35,20 +35,18 @@
       </div>
     </section>
 
-    <!-- === RIGHT: GLOBAL TO-DO LIST === -->
+    <!-- RIGHT: GLOBAL TO-DO LIST -->
     <section>
       <h2 class="text-xl font-semibold mb-4 text-gray-800 flex items-center gap-2">
         <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
         Global To-Do List
       </h2>
 
-      <!-- Add Todo -->
       <div class="flex gap-2 mb-4">
         <input type="text" id="global-todo-input" placeholder="Add a task..." class="flex-1 border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"/>
         <button id="add-global-todo" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">Add</button>
       </div>
 
-      <!-- Todo List -->
       <ul id="global-todo-list" class="space-y-2"></ul>
       <p id="global-empty" class="text-center text-gray-500 py-8 hidden">No tasks. Add one above!</p>
     </section>
@@ -126,7 +124,7 @@
       return map[s] || '#6b7280';
     };
 
-    // ==== PROJECTS ====
+    // ==== PROJECT CARD (with visible EDIT button) ====
     const renderProjectCard = (proj) => {
       const days = daysLeft(proj.endDate);
       const progress = proj.startDate && proj.endDate
@@ -134,7 +132,8 @@
         : 0;
 
       const card = document.createElement('div');
-      card.className = 'bg-white rounded-lg shadow-sm border p-4 hover:shadow transition-shadow';
+      card.className = 'bg-white rounded-lg shadow-sm border p-4 hover:shadow transition-shadow relative';
+
       card.innerHTML = `
         <div class="flex justify-between items-start mb-2">
           <h3 class="font-medium text-gray-900">${proj.name}</h3>
@@ -149,10 +148,16 @@
           <div class="progress-bar mt-2"><div class="progress-fill" style="width:${progress}%;background:${statusColor(proj.status)}"></div></div>
           ${proj.cost ? `<p class="mt-1 text-xs"><strong>₹${Number(proj.cost).toLocaleString('en-IN')}</strong></p>` : ''}
         </div>
-        <button onclick="event.stopPropagation(); openEditProject('${proj.id}')" class="absolute top-2 right-2 text-gray-400 hover:text-indigo-600">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+
+        <!-- Visible EDIT button -->
+        <button onclick="event.stopPropagation(); openEditProject('${proj.id}')" class="absolute top-2 right-2 text-indigo-600 hover:text-indigo-800">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
         </button>
       `;
+
+      // Optional: click card to view details (no edit)
+      card.onclick = () => alert(`Project: ${proj.name}\nStatus: ${proj.status}\nNotes: ${proj.notes || '—'}`);
+
       return card;
     };
 
@@ -167,7 +172,7 @@
       data.forEach(p => grid.appendChild(renderProjectCard(p)));
     };
 
-    // Project Modal
+    // ==== PROJECT MODAL ====
     const resetProjectForm = () => {
       projectForm.reset();
       document.getElementById('project-id').value = '';
@@ -196,7 +201,8 @@
       e.preventDefault();
       const id = document.getElementById('project-id').value || Date.now().toString();
       const newProj = {
-        id, name: document.getElementById('name').value.trim(),
+        id,
+        name: document.getElementById('name').value.trim(),
         status: document.getElementById('status').value,
         startDate: document.getElementById('start-date').value || null,
         endDate: document.getElementById('end-date').value,
@@ -244,7 +250,6 @@
       });
     };
 
-    // Add Todo
     addBtn.onclick = () => {
       const text = todoInput.value.trim();
       if (!text) return;
@@ -259,7 +264,6 @@
       if (e.key === 'Enter') addBtn.click();
     });
 
-    // Toggle, Edit, Delete
     window.toggleGlobalTodo = (id) => {
       const todos = loadTodos();
       const todo = todos.find(t => t.id === id);
