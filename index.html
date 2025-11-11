@@ -3,11 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Project Tracker</title>
+  <title>Project Tracker + Todos</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Heroicons (optional) -->
-  <script src="https://unpkg.com/heroicons@2.1.1/dist/heroicons.min.js"></script>
   <style>
     .progress-bar { @apply h-3 rounded-full bg-gray-200 overflow-hidden; }
     .progress-fill { @apply h-full transition-all duration-500; }
@@ -18,7 +16,7 @@
   <!-- Header -->
   <header class="bg-white shadow-sm border-b">
     <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-      <h1 class="text-2xl font-bold text-indigo-600">Project Tracker</h1>
+      <h1 class="text-2xl font-bold text-indigo-600">Project Tracker + Todos</h1>
       <button id="new-project-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         New Project
@@ -32,17 +30,16 @@
 
     <!-- Empty State -->
     <div id="empty-state" class="text-center py-12 hidden">
-      <svg class="mx-auto w-20 h-20 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
       <p class="text-gray-500">No projects yet. Click <strong>New Project</strong> to start.</p>
     </div>
   </main>
 
-  <!-- Modal (hidden by default) -->
-  <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+  <!-- Project Modal (Create / Edit) -->
+  <div id="project-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 p-6 max-h-screen overflow-y-auto">
       <div class="flex justify-between items-center mb-4">
-        <h2 id="modal-title" class="text-xl font-semibold">New Project</h2>
-        <button id="close-modal" class="text-gray-400 hover:text-gray-600">
+        <h2 id="project-modal-title" class="text-xl font-semibold">New Project</h2>
+        <button id="close-project-modal" class="text-gray-400 hover:text-gray-600">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
@@ -93,26 +90,52 @@
         </div>
 
         <div class="flex justify-end gap-3 mt-6">
-          <button type="button" id="cancel-modal" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+          <button type="button" id="cancel-project-modal" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
           <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Save Project</button>
         </div>
       </form>
     </div>
   </div>
 
+  <!-- Todo Modal (per project) -->
+  <div id="todo-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl mx-4 p-6 max-h-screen overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h2 id="todo-modal-title" class="text-xl font-semibold">Todos</h2>
+        <button id="close-todo-modal" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <input type="hidden" id="current-project-id"/>
+
+      <!-- Add Todo -->
+      <div class="flex gap-2 mb-4">
+        <input type="text" id="new-todo-text" placeholder="Add a new task..." class="flex-1 border rounded-lg px-3 py-2"/>
+        <button id="add-todo-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">Add</button>
+      </div>
+
+      <!-- Todo List -->
+      <ul id="todo-list" class="space-y-2"></ul>
+
+      <!-- Empty Todo State -->
+      <p id="empty-todo" class="text-center text-gray-500 py-8 hidden">No tasks yet. Add one above!</p>
+    </div>
+  </div>
+
   <!-- Scripts -->
   <script>
-    // ==== LocalStorage Helper ====
+    // ==== LocalStorage ====
     const STORAGE_KEY = 'project-tracker-data';
-    const loadProjects = () => JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    const saveProjects = (arr) => localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+    const loadData = () => JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const saveData = (arr) => localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
 
     // ==== DOM Elements ====
     const grid = document.getElementById('projects-grid');
     const empty = document.getElementById('empty-state');
-    const modalBackdrop = document.getElementById('modal-backdrop');
-    const modalTitle = document.getElementById('modal-title');
-    const form = document.getElementById('project-form');
+    const projectModal = document.getElementById('project-modal');
+    const todoModal = document.getElementById('todo-modal');
+    const projectForm = document.getElementById('project-form');
     const newBtn = document.getElementById('new-project-btn');
 
     // ==== Utility ====
@@ -127,34 +150,32 @@
       return map[s] || '#6b7280';
     };
 
-    // ==== Render Card ====
-    const renderCard = (proj) => {
+    // ==== Project Card ====
+    const renderProjectCard = (proj) => {
       const days = daysLeft(proj.endDate);
       const progress = proj.startDate && proj.endDate
-        ? Math.min(100, Math.round(( (new Date() - new Date(proj.startDate)) / (new Date(proj.endDate) - new Date(proj.startDate)) ) * 100))
+        ? Math.min(100, Math.round(((new Date() - new Date(proj.startDate)) / (new Date(proj.endDate) - new Date(proj.startDate))) * 100))
         : 0;
 
       const card = document.createElement('div');
-      card.className = 'bg-white rounded-xl shadow-sm border p-5 hover:shadow-md transition-shadow cursor-pointer';
-      card.onclick = () => openEditModal(proj.id);
+      card.className = 'bg-white rounded-xl shadow-sm border p-5 hover:shadow-md transition-shadow cursor-pointer relative';
+      card.onclick = (e) => {
+        if (!e.target.closest('button')) openTodoModal(proj.id);
+      };
 
       card.innerHTML = `
         <div class="flex justify-between items-start mb-3">
-          <h3 class="font-semibold text-lg text-gray-900 truncate">${proj.name}</h3>
+          <h3 class="font-semibold text-lg text-gray-900 truncate pr-8">${proj.name}</h3>
           <span class="px-2 py-1 text-xs font-medium rounded-full text-white" style="background:${statusColor(proj.status)}">
             ${proj.status.replace('-',' ').toUpperCase()}
           </span>
         </div>
 
         <div class="space-y-2 text-sm text-gray-600">
-          <div class="flex justify-between">
-            <span>Start:</span> <span class="font-medium">${formatDate(proj.startDate)}</span>
-          </div>
-          <div class="flex justify-between">
-            <span>Est. Finish:</span> <span class="font-medium">${formatDate(proj.endDate)}</span>
-          </div>
+          <div class="flex justify-between"><span>Start:</span> <span class="font-medium">${formatDate(proj.startDate)}</span></div>
+          <div class="flex justify-between"><span>Est. Finish:</span> <span class="font-medium">${formatDate(proj.endDate)}</span></div>
           ${days !== null ? `<div class="text-right text-xs ${days===0?'text-green-600':(days<=7?'text-orange-600':'text-gray-500')}">
-            ${days === 0 ? 'Due today' : `${days} day${days>1?'s':''} left`}
+            ${days === 0 ? 'Due today' : \`\${days} day\${days>1?'s':''} left\`}
           </div>` : ''}
 
           <div class="progress-bar mt-3">
@@ -162,45 +183,46 @@
           </div>
 
           ${proj.cost ? `<p class="mt-2"><strong>₹${Number(proj.cost).toLocaleString('en-IN')}</strong> estimated</p>` : ''}
-          ${proj.members ? `<p class="text-xs text-gray-500 mt-1">👥 ${proj.members}</p>` : ''}
+          ${proj.members ? `<p class="text-xs text-gray-500 mt-1">Team: ${proj.members}</p>` : ''}
+
+          <button onclick="event.stopPropagation(); openEditProject('${proj.id}')" class="absolute top-2 right-2 text-gray-400 hover:text-indigo-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          </button>
         </div>
       `;
 
       return card;
     };
 
-    // ==== Render All ====
-    const renderAll = () => {
-      const projects = loadProjects();
+    // ==== Render Projects ====
+    const renderProjects = () => {
+      const data = loadData();
       grid.innerHTML = '';
-      if (projects.length === 0) {
+      if (data.length === 0) {
         empty.classList.remove('hidden');
         return;
       }
       empty.classList.add('hidden');
-      projects.forEach(p => grid.appendChild(renderCard(p)));
+      data.forEach(p => grid.appendChild(renderProjectCard(p)));
     };
 
-    // ==== Modal Helpers ====
-    const resetForm = () => {
-      form.reset();
+    // ==== Project Modal ====
+    const resetProjectForm = () => {
+      projectForm.reset();
       document.getElementById('project-id').value = '';
-      modalTitle.textContent = 'New Project';
+      document.getElementById('project-modal-title').textContent = 'New Project';
     };
 
-    const openModal = () => {
-      resetForm();
-      modalBackdrop.classList.remove('hidden');
-      document.getElementById('name').focus();
+    const openProjectModal = () => {
+      resetProjectForm();
+      projectModal.classList.remove('hidden');
     };
 
-    const closeModal = () => {
-      modalBackdrop.classList.add('hidden');
-    };
+    const closeProjectModal = () => projectModal.classList.add('hidden');
 
-    const openEditModal = (id) => {
-      const projects = loadProjects();
-      const proj = projects.find(p => p.id === id);
+    window.openEditProject = (id) => {
+      const data = loadData();
+      const proj = data.find(p => p.id === id);
       if (!proj) return;
 
       document.getElementById('project-id').value = proj.id;
@@ -211,12 +233,11 @@
       document.getElementById('cost').value = proj.cost || '';
       document.getElementById('members').value = proj.members || '';
       document.getElementById('notes').value = proj.notes || '';
-      modalTitle.textContent = 'Edit Project';
-      modalBackdrop.classList.remove('hidden');
+      document.getElementById('project-modal-title').textContent = 'Edit Project';
+      projectModal.classList.remove('hidden');
     };
 
-    // ==== Save / Update ====
-    form.addEventListener('submit', (e) => {
+    projectForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const id = document.getElementById('project-id').value || Date.now().toString();
       const newProj = {
@@ -228,27 +249,139 @@
         cost: document.getElementById('cost').value || null,
         members: document.getElementById('members').value.trim() || null,
         notes: document.getElementById('notes').value.trim() || null,
+        todos: loadData().find(p => p.id === id)?.todos || [],
         updatedAt: new Date().toISOString()
       };
 
-      let projects = loadProjects();
-      const idx = projects.findIndex(p => p.id === id);
-      if (idx > -1) projects[idx] = newProj;
-      else projects.push(newProj);
+      let data = loadData();
+      const idx = data.findIndex(p => p.id === id);
+      if (idx > -1) data[idx] = newProj;
+      else data.push(newProj);
 
-      saveProjects(projects);
-      closeModal();
-      renderAll();
+      saveData(data);
+      closeProjectModal();
+      renderProjects();
     });
 
+    // ==== Todo Modal ====
+    let currentProjectId = null;
+
+    const openTodoModal = (projId) => {
+      currentProjectId = projId;
+      document.getElementById('current-project-id').value = projId;
+      document.getElementById('todo-modal-title').textContent = `Todos – ${loadData().find(p=>p.id===projId)?.name || ''}`;
+      renderTodos();
+      todoModal.classList.remove('hidden');
+    };
+
+    const closeTodoModal = () => {
+      todoModal.classList.add('hidden');
+      currentProjectId = null;
+    };
+
+    const renderTodos = () => {
+      const data = loadData();
+      const proj = data.find(p => p.id === currentProjectId);
+      const todos = proj?.todos || [];
+      const list = document.getElementById('todo-list');
+      const emptyMsg = document.getElementById('empty-todo');
+      list.innerHTML = '';
+
+      if (todos.length === 0) {
+        emptyMsg.classList.remove('hidden');
+        return;
+      }
+      emptyMsg.classList.add('hidden');
+
+      todos.forEach(todo => {
+        const li = document.createElement('li');
+        li.className = 'flex items-start gap-3 p-3 border rounded-lg bg-gray-50';
+
+        li.innerHTML = `
+          <input type="checkbox" ${todo.done?'checked':''} class="mt-1" onchange="toggleTodo('${todo.id}')"/>
+          <div class="flex-1">
+            <p class="${todo.done?'line-through text-gray-500':'font-medium'}">${todo.text}</p>
+            ${todo.comment ? `<p class="text-xs text-gray-600 mt-1">→ ${todo.comment}</p>` : ''}
+          </div>
+          <button onclick="editTodoComment('${todo.id}')" class="text-gray-400 hover:text-indigo-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
+          </button>
+          <button onclick="deleteTodo('${todo.id}')" class="text-red-500 hover:text-red-700">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        `;
+        list.appendChild(li);
+      });
+    };
+
+    // Add Todo
+    document.getElementById('add-todo-btn').onclick = () => {
+      const input = document.getElementById('new-todo-text');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const data = loadData();
+      const proj = data.find(p => p.id === currentProjectId);
+      if (!proj.todos) proj.todos = [];
+      proj.todos.push({
+        id: Date.now().toString(),
+        text,
+        done: false,
+        comment: ''
+      });
+      saveData(data);
+      input.value = '';
+      renderTodos();
+    };
+
+    // Toggle Done
+    window.toggleTodo = (id) => {
+      const data = loadData();
+      const proj = data.find(p => p.id === currentProjectId);
+      const todo = proj.todos.find(t => t.id === id);
+      if (todo) todo.done = !todo.done;
+      saveData(data);
+      renderTodos();
+    };
+
+    // Edit Comment
+    window.editTodoComment = (id) => {
+      const data = loadData();
+      const proj = data.find(p => p.id === currentProjectId);
+      const todo = proj.todos.find(t => t.id === id);
+      const comment = prompt('Add/edit comment:', todo.comment);
+      if (comment !== null) {
+        todo.comment = comment.trim();
+        saveData(data);
+        renderTodos();
+      }
+    };
+
+    // Delete Todo
+    window.deleteTodo = (id) => {
+      if (!confirm('Delete this task?')) return;
+      const data = loadData();
+      const proj = data.find(p => p.id === currentProjectId);
+      proj.todos = proj.todos.filter(t => t.id !== id);
+      saveData(data);
+      renderTodos();
+    };
+
     // ==== Event Listeners ====
-    newBtn.onclick = openModal;
-    document.getElementById('close-modal').onclick = closeModal;
-    document.getElementById('cancel-modal').onclick = closeModal;
-    modalBackdrop.onclick = (e) => { if (e.target === modalBackdrop) closeModal(); };
+    newBtn.onclick = openProjectModal;
+    document.getElementById('close-project-modal').onclick = closeProjectModal;
+    document.getElementById('cancel-project-modal').onclick = closeProjectModal;
+    document.getElementById('close-todo-modal').onclick = closeTodoModal;
+    projectModal.onclick = (e) => { if (e.target === projectModal) closeProjectModal(); };
+    todoModal.onclick = (e) => { if (e.target === todoModal) closeTodoModal(); };
+
+    // Enter to add todo
+    document.getElementById('new-todo-text').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') document.getElementById('add-todo-btn').click();
+    });
 
     // ==== Init ====
-    renderAll();
+    renderProjects();
   </script>
 </body>
 </html>
